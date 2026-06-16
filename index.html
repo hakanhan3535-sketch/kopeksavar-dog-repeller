@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultrasonik Köpek Uzaklaştırıcı</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        .container {
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 30px;
+        }
+
+        /* Büyük ve kolay basılabilir buton */
+        .btn-ses {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            border: none;
+            background-color: #28a745;
+            color: white;
+            font-size: 22px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(40, 167, 69, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .btn-ses.aktif {
+            background-color: #dc3545;
+            box-shadow: 0 0 30px rgba(220, 53, 69, 0.7);
+        }
+
+        .kontrol-grup {
+            margin-top: 40px;
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .durum-text {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #aaaaaa;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Köpek Savar Prototip</h1>
+        
+        <button id="sesButon" class="btn-ses">SESİ BAŞLAT</button>
+
+        <div class="kontrol-grup">
+            <label for="frekansKaydirici">Frekans: <span id="frekansDeger">22000</span> Hz</label>
+            <input type="range" id="frekansKaydirici" min="15000" max="25000" step="500" value="22000">
+            <p style="font-size: 12px; color: #888;">Not: 20000 Hz üzerini insanlar duyamaz. Test etmek için 15000 Hz civarına çekebilirsiniz.</p>
+        </div>
+
+        <div class="durum-text" id="durumMesaj">Sistem hazır.</div>
+    </div>
+
+    <script>
+        // HTML Elementlerini Seçiyoruz
+        const sesButon = document.getElementById('sesButon');
+        const frekansKaydirici = document.getElementById('frekansKaydirici');
+        const frekansDeger = document.getElementById('frekansDeger');
+        const durumMesaj = document.getElementById('durumMesaj');
+
+        // Ses değişkenlerimiz
+        let audioCtx = null;
+        let oscillator = null;
+        let gainNode = null;
+        let calisiyorMu = false;
+
+        // Butona tıklama olayı
+        sesButon.addEventListener('click', () => {
+            if (!calisiyorMu) {
+                sesiBaslat();
+            } else {
+                sesiDurdur();
+            }
+        });
+
+        // Kaydırıcı (Slider) hareket ettirildiğinde frekansı anlık değiştir
+        frekansKaydirici.addEventListener('input', (e) => {
+            const yeniFrekans = e.target.value;
+            frekansDeger.textContent = yeniFrekans;
+            
+            // Eğer ses o an açıksa, frekansı canlı olarak güncelle
+            if (oscillator) {
+                oscillator.frequency.setValueAtTime(yeniFrekans, audioCtx.currentTime);
+            }
+        });
+
+        function sesiBaslat() {
+            // 1. Ses motorunu başlat (Yoksa yeni oluştur)
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            // 2. Osilatör (Ses dalgası üretici) oluştur
+            oscillator = audioCtx.createOscillator();
+            oscillator.type = 'sine'; // Saf sinüs dalgası
+            oscillator.frequency.setValueAtTime(frekansKaydirici.value, audioCtx.currentTime);
+
+            // 3. Ses seviyesi kontrolcüsü oluştur
+            gainNode = audioCtx.createGain();
+            gainNode.gain.setValueAtTime(1, audioCtx.currentTime); // Tam ses seviyesi
+
+            // 4. Bağlantıları Yap: Osilatör -> Ses Kontrolü -> Hoparlör
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            // 5. Sesi Başlat
+            oscillator.start();
+
+            // Arayüzü Güncelle
+            calisiyorMu = true;
+            sesButon.textContent = "SESİ DURDUR";
+            sesButon.classList.add('aktif');
+            durumMesaj.textContent = frekansKaydirici.value + " Hz frekansında ultrasonik ses yayılıyor...";
+        }
+
+        function sesiDurdur() {
+            if (oscillator) {
+                oscillator.stop();
+                oscillator.disconnect();
+            }
+            if (gainNode) {
+                gainNode.disconnect();
+            }
+            
+            // Arayüzü Güncelle
+            calisiyorMu = false;
+            sesButon.textContent = "SESİ BAŞLAT";
+            sesButon.classList.remove('aktif');
+            durumMesaj.textContent = "Ses durduruldu.";
+        }
+    </script>
+</body>
+</html>
